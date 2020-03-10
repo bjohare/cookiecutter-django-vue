@@ -7,14 +7,16 @@ services:
   backend:
     build:
       context: ./backend
+      dockerfile: ./compose/local/Dockerfile
     depends_on:
       - postgres
     volumes:
       - ./backend:/app
-    command: /start.sh
-    entrypoint: /entrypoint.sh
-    restart: on-failure
+    command: sh -c "/wait && /start.sh"
+    restart: unless-stopped
     env_file: .env
+    environment:
+      WAIT_HOSTS: pgbouncer:5439
 
   frontend:
     image: node:10-alpine
@@ -23,13 +25,26 @@ services:
       - ./.env:/app/.env:ro
       - ./frontend:/app
     working_dir: /app
-    restart: on-failure
+    restart: unless-stopped
 
   postgres:
-    image: postgres:10-alpine
+    image: kartoza/postgis:12.1
     volumes:
       - {{cookiecutter.project_slug}}_data:/var/lib/postgresql/data
     env_file: .env
+
+  pgbouncer:
+    image: pgbouncer/pgbouncer
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    ports:
+      - "5439:5439"
+    env_file: .env
+    environment:
+      WAIT_HOSTS: postgres:5432
+    logging:
+      driver: none
 
 {% if cookiecutter.use_mailhog == 'y' %}
   mailhog:

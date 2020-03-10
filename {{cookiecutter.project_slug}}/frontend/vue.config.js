@@ -4,6 +4,7 @@ module.exports = {
   devServer: {
     hot: true,
     hotOnly: true,
+    progress: false,
     disableHostCheck: true,
     historyApiFallback: true,
     public: '0.0.0.0:8000',

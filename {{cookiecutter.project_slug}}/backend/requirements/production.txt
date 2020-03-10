@@ -1,0 +1,12 @@
+-r base.txt
+
+{% if cookiecutter.use_sentry == 'y' %}
+raven==6.10.0
+{% endif %}
+redis==2.10.6
+django-redis==4.9.0
+gevent==1.3.6
+greenlet==0.4.14
+gunicorn==20.0.4
+django-storages==1.8.0
+boto3==1.11.1

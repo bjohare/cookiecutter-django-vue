@@ -1,0 +1,86 @@
+version: '3.3'
+
+volumes:
+    postgres_data: {}
+{% if cookiecutter.use_portainer == 'y' %}
+    portainer_data: {}
+{% endif %}
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ./compose/production/Dockerfile
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend:/app
+    command: sh -c "/wait && /start.sh"
+    restart: unless-stopped
+    ports:
+      - ${BACKEND_PORT}:8000
+    env_file: .env
+    environment:
+      WAIT_HOSTS: pgbouncer:5439
+
+  frontend:
+    image: node:10-alpine
+    command: npm run serve
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./frontend:/app
+    working_dir: /app
+    restart: unless-stopped
+
+  postgres:
+    image: kartoza/postgis:12.1
+    volumes:
+      - {{cookiecutter.project_slug}}_data:/var/lib/postgresql/data
+    env_file: .env
+
+  pgbouncer:
+    image: pgbouncer/pgbouncer
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    ports:
+      - "5439:5439"
+    env_file: .env
+    environment:
+      WAIT_HOSTS: postgres:5432
+    logging:
+      driver: none
+
+{% if cookiecutter.use_mailhog == 'y' %}
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "8025:8025"
+    logging:
+      driver: none
+{% endif %}
+
+{% if cookiecutter.backups == 'y' %}
+  backups:
+    image: prodrigestivill/postgres-backup-local
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    volumes:
+      - /tmp/backups/:/backups/
+{% endif %}
+
+{% if cookiecutter.use_portainer == 'y' %}
+  portainer:
+    image: portainer/portainer
+    ports:
+      - "9000:9000"
+    command: -H unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+{% endif %}
+
+  redis:
+    image: redis:3.0
+    restart: unless-stopped

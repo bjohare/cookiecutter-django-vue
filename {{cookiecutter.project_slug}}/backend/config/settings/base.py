@@ -10,7 +10,7 @@ https://docs.djangoproject.com/en/dev/ref/settings/
 import environ
 from datetime import timedelta
 
-ROOT_DIR = environ.Path(__file__) - 2
+ROOT_DIR = environ.Path(__file__) - 3
 
 # Load operating system environment variables and then prepare to use them
 env = environ.Env()
@@ -24,15 +24,21 @@ DJANGO_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.admin',
+    'django.contrib.gis',
+    'django.contrib.postgres',
 ]
 
 THIRD_PARTY_APPS = [
     {% if cookiecutter.api == 'REST' %}
     'rest_framework',
+    'rest_framework.authtoken',
+    'rest_framework_gis',
     {% elif cookiecutter.api == 'GraphQL' %}
     'graphene_django',
     {% endif %}
     'django_extensions',
+    'django_filters',
+    'django_sendfile',
 ]
 
 LOCAL_APPS = [
@@ -84,14 +90,13 @@ MANAGERS = ADMINS
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#databases
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': env.str('POSTGRES_DB'),
-        'USER': env.str('POSTGRES_USER'),
-        'PASSWORD': env.str('POSTGRES_PASSWORD'),
-        'HOST': 'postgres',
-        'PORT': 5432,
+        'HOST': 'pgbouncer',
+        'PORT': 5439,
     },
 }
+DATABASES['default']['ATOMIC_REQUESTS'] = True
 
 # GENERAL CONFIGURATION
 # ------------------------------------------------------------------------------
@@ -199,7 +204,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # AUTHENTICATION CONFIGURATION
 # ------------------------------------------------------------------------------
 AUTHENTICATION_BACKENDS = [
-    {% if cookiecutter.api == 'GraphQL' %}'graphql_jwt.backends.JSONWebTokenBackend',{% endif %}
+    {% if cookiecutter.api == 'GraphQL' %}'graphql_jwt.backends.JSONWebTokenBackend', {% endif %}
     'django.contrib.auth.backends.ModelBackend',
 ]
 
@@ -223,13 +228,16 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.FormParser',
         'rest_framework.parsers.MultiPartParser',
         'rest_framework.parsers.FileUploadParser'
-    ]
+    ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend'
+    ],
 }
 {% elif cookiecutter.api == 'GraphQL' %}
 # Graphene
 GRAPHENE = {
     'SCHEMA': 'config.schema.schema',
-     'MIDDLEWARE': [
+    'MIDDLEWARE': [
         'graphql_jwt.middleware.JSONWebTokenMiddleware',
     ],
 }
@@ -247,12 +255,17 @@ GRAPHQL_JWT = {
 }
 {% endif %}
 
+SERIALIZATION_MODULES = {
+    'geojson': 'djgeojson.serializers',
+}
+
 
 {% if cookiecutter.use_sentry == 'y' %}
 # raven sentry client
 # See https://docs.sentry.io/clients/python/integrations/django/
 INSTALLED_APPS += ['raven.contrib.django.raven_compat']
-RAVEN_MIDDLEWARE = ['raven.contrib.django.raven_compat.middleware.SentryResponseErrorIdMiddleware']
+RAVEN_MIDDLEWARE = [
+    'raven.contrib.django.raven_compat.middleware.SentryResponseErrorIdMiddleware']
 MIDDLEWARE = RAVEN_MIDDLEWARE + MIDDLEWARE
 
 # Sentry Configuration
