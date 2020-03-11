@@ -15,7 +15,7 @@ services:
       - postgres
     volumes:
       - ./backend:/app
-    command: sh -c "/wait && /start.sh"
+    command: sh -c "/wait && /gunicorn.sh"
     restart: unless-stopped
     ports:
       - ${BACKEND_PORT}:8000
